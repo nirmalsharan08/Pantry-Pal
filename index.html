@@ -127,13 +127,72 @@
             }
         }
 
-        function getSuggestions() {
-            const pantry = JSON.parse(localStorage.getItem('myPantry')) || [];
-            if (pantry.length === 0) return alert("Pantry is empty!");
-            
-            const ingredients = pantry.slice(0, 2).map(i => i.name).join(" and ");
-            window.open(`https://www.google.com/search?q=easy+recipes+using+${encodeURIComponent(ingredients)}`, '_blank');
+   async function getSuggestions() {
+    const apiKey = 'e1b9fe15cb7f450395a473bab8729d0f'; 
+    
+    // SAFE CHECK: Try to get data from both common names
+    let pantry = JSON.parse(localStorage.getItem('pantrypal08')) || 
+                 JSON.parse(localStorage.getItem('myPantry')) || [];
+    
+    // If it's STILL empty, let's look at the actual console to see what the key is
+    if (pantry.length === 0) {
+        console.log("LocalStorage Keys available:", Object.keys(localStorage));
+        return alert("Pantry data not found. Try adding an item again to refresh the list!");
+    }
+
+    const recipeList = document.getElementById('recipeList');
+    const resultsArea = document.getElementById('recipeResults');
+    resultsArea.classList.remove('hidden');
+    recipeList.innerHTML = "<p class='text-blue-500 animate-pulse'>Finding recipes for your items...</p>";
+
+    // Clean ingredients: "bread", "butter", "potatoes"
+    const ingredients = pantry.slice(0, 3).map(i => i.name.trim()).join(",");
+
+    try {
+        // Updated URL - using the standard endpoint
+        const url = `https://api.spoonacular.com/food/recipes/findByIngredients?ingredients=${ingredients}&number=3&apiKey=${apiKey}`;
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            // This handles the "Please subscribe to a plan" issue from your 2nd image
+            throw new Error(`Status ${response.status}: Key not active yet.`);
         }
+
+        const recipes = await response.json();
+        
+        recipeList.innerHTML = ''; 
+        recipes.forEach(recipe => {
+            recipeList.innerHTML += `
+                <div class="bg-white border p-3 rounded-xl flex gap-3 mb-3 shadow-sm items-center">
+                    <img src="${recipe.image}" class="w-16 h-16 rounded-lg object-cover">
+                    <div class="flex-1">
+                        <h4 class="font-bold text-sm text-gray-800">${recipe.title}</h4>
+                        <button onclick="window.open('https://www.google.com/search?q=${encodeURIComponent(recipe.title)}')" 
+                                class="text-blue-500 text-xs font-bold mt-1">
+                            VIEW STEPS ➔
+                        </button>
+                    </div>
+                </div>`;
+        });
+
+    } catch (err) {
+        // FALLBACK: If API or Key fails, we use your bread/butter/potatoes for a smart Google search
+        recipeList.innerHTML = `
+            <div class="p-3 bg-blue-50 text-blue-700 rounded-lg text-xs border border-blue-100">
+                <p class="font-bold mb-1">API Key Activation Pending</p>
+                <p class="mb-2">Spoonacular is still verifying your free plan. Use our Smart Search instead!</p>
+                <button onclick="window.open('https://www.google.com/search?q=easy+recipes+with+${ingredients}')" 
+                        class="w-full bg-blue-600 text-white p-2 rounded-lg font-bold shadow-md">
+                    Search Recipes for ${pantry[0].name} & more
+                </button>
+            </div>`;
+    }
+}
     </script>
+<div id="recipeResults" class="mt-8 hidden">
+    <h3 class="font-bold text-gray-700 mb-3 border-t pt-4">Suggested Recipes</h3>
+    <div id="recipeList" class="grid grid-cols-1 gap-4">
+        </div>
+</div>
 </body>
 </html>
