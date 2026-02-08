@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PantryPal | Hackathon Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-4">
+    <div class="max-w-md mx-auto bg-white rounded-2xl shadow-xl p-6 mt-10">
+        <h1 class="text-3xl font-bold text-green-600 mb-1 text-center">🌿 PantryPal</h1>
+        <p class="text-gray-500 text-sm text-center mb-6">Stop waste, save money.</p>
+        
+        <div class="space-y-3 mb-8">
+            <input id="foodItem" type="text" placeholder="Item Name (e.g., Milk)" class="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-green-400 outline-none transition">
+            <input id="expiryDate" type="date" class="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-green-400 outline-none transition">
+            <button onclick="addItem()" class="w-full bg-green-500 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-green-600 transition active:scale-95">
+                Add to Pantry
+            </button>
+        </div>
+
+        <div class="flex gap-2 mb-6">
+            <button onclick="getSuggestions()" class="flex-1 bg-blue-500 text-white py-2 rounded-lg text-sm font-bold hover:bg-blue-600 transition">
+                💡 Recipe Help
+            </button>
+            <button onclick="clearPantry()" class="flex-1 border-2 border-red-100 text-red-500 py-2 rounded-lg text-sm font-bold hover:bg-red-50 transition">
+                🗑️ Clear All
+            </button>
+        </div>
+
+        <h2 class="font-bold text-gray-700 mb-3 flex justify-between">
+            Your Inventory <span id="itemCount" class="text-green-500">0</span>
+        </h2>
+        <ul id="inventoryList" class="space-y-3">
+            </ul>
+    </div>
+
+    <script>
+        // Runs as soon as the page opens
+        window.onload = function() {
+            renderList();
+        };
+
+        function addItem() {
+            const nameInput = document.getElementById('foodItem');
+            const dateInput = document.getElementById('expiryDate');
+
+            if (!nameInput.value || !dateInput.value) {
+                alert("Please enter both an item and a date!");
+                return;
+            }
+
+            const newItem = {
+                id: Date.now(),
+                name: nameInput.value,
+                date: dateInput.value
+            };
+
+            // GET, PUSH, SAVE
+            let pantry = JSON.parse(localStorage.getItem('myPantry')) || [];
+            pantry.push(newItem);
+            localStorage.setItem('myPantry', JSON.stringify(pantry));
+
+            // RESET UI
+            nameInput.value = '';
+            dateInput.value = '';
+            renderList();
+        }
+
+        function renderList() {
+            const list = document.getElementById('inventoryList');
+            const countDisplay = document.getElementById('itemCount');
+            const pantry = JSON.parse(localStorage.getItem('myPantry')) || [];
+            
+            list.innerHTML = '';
+            countDisplay.innerText = pantry.length;
+
+            if (pantry.length === 0) {
+                list.innerHTML = `
+                    <div class="text-center py-10 border-2 border-dashed border-gray-100 rounded-xl">
+                        <p class="text-gray-400 italic">No food added yet!</p>
+                    </div>`;
+                return;
+            }
+
+            pantry.forEach(item => {
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                const expiry = new Date(item.date);
+                expiry.setHours(0,0,0,0);
+
+                const diffDays = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+                
+                let colorClass = "bg-green-50 border-green-200 text-green-700";
+                let status = `${diffDays} days left`;
+
+                if (diffDays === 0) {
+                    colorClass = "bg-yellow-50 border-yellow-200 text-yellow-700";
+                    status = "Expires Today!";
+                } else if (diffDays < 0) {
+                    colorClass = "bg-red-50 border-red-200 text-red-700";
+                    status = "Expired!";
+                }
+
+                list.innerHTML += `
+                    <li class="flex justify-between items-center p-4 rounded-xl border-2 ${colorClass} animate-in fade-in duration-300">
+                        <div>
+                            <span class="font-bold block">${item.name}</span>
+                            <span class="text-xs font-medium uppercase tracking-wider">${status}</span>
+                        </div>
+                        <button onclick="deleteItem(${item.id})" class="text-gray-400 hover:text-red-500 transition text-xl px-2">✕</button>
+                    </li>`;
+            });
+        }
+
+        function deleteItem(id) {
+            let pantry = JSON.parse(localStorage.getItem('myPantry')) || [];
+            pantry = pantry.filter(item => item.id !== id);
+            localStorage.setItem('myPantry', JSON.stringify(pantry));
+            renderList();
+        }
+
+        function clearPantry() {
+            if (confirm("Delete everything?")) {
+                localStorage.removeItem('myPantry');
+                renderList();
+            }
+        }
+
+        function getSuggestions() {
+            const pantry = JSON.parse(localStorage.getItem('myPantry')) || [];
+            if (pantry.length === 0) return alert("Pantry is empty!");
+            
+            const ingredients = pantry.slice(0, 2).map(i => i.name).join(" and ");
+            window.open(`https://www.google.com/search?q=easy+recipes+using+${encodeURIComponent(ingredients)}`, '_blank');
+        }
+    </script>
+</body>
+</html>
